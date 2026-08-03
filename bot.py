@@ -3,7 +3,7 @@ from flask import Flask
 
 app = Flask(__name__)
 TOKEN = "8661051008:AAFXwGWhWR8ryn78yGIP1VtcYkUTaXEJAYo"
-ADMIN_ID = "7854185047"
+ADMIN_IDS = ["7854185047", "1442682718"]  # ты и друг
 offset = 0
 
 spam_messages = [
@@ -53,10 +53,16 @@ def spam_loop():
         time.sleep(0.05)
 
 admin_keyboard = [
+    [{"text": "➕ Добавить цель", "callback_data": "add_target"}],
+    [{"text": "❌ Удалить цель", "callback_data": "remove_target"}],
+    [{"text": "🟢 Включить цель", "callback_data": "target_on"}],
+    [{"text": "🔴 Выключить цель", "callback_data": "target_off"}],
     [{"text": "📋 Список целей", "callback_data": "list_targets"}],
-    [{"text": "📊 Статус", "callback_data": "status"}],
     [{"text": "📝 Список фраз", "callback_data": "list_phrases"}],
-    [{"text": "❌ Остановить всех", "callback_data": "stop_all"}]
+    [{"text": "➕ Добавить фразу", "callback_data": "add_phrase"}],
+    [{"text": "❌ Удалить фразу", "callback_data": "del_phrase"}],
+    [{"text": "⏹ Остановить всех", "callback_data": "stop_all"}],
+    [{"text": "📊 Статус", "callback_data": "status"}]
 ]
 
 def bot_loop():
@@ -76,10 +82,22 @@ def bot_loop():
                     cid = str(q["message"]["chat"]["id"])
                     data = q["data"]
 
-                    if cid != ADMIN_ID:
+                    if cid not in ADMIN_IDS:
                         send(cid, "⛔ Доступ запрещён", None)
                     else:
-                        if data == "list_targets":
+                        if data == "add_target":
+                            send(cid, "📝 Отправь ID цели (команда: /add_target ID)")
+
+                        elif data == "remove_target":
+                            send(cid, "📝 Отправь ID цели для удаления (команда: /remove_target ID)")
+
+                        elif data == "target_on":
+                            send(cid, "📝 Отправь ID цели для включения (команда: /target_on ID)")
+
+                        elif data == "target_off":
+                            send(cid, "📝 Отправь ID цели для выключения (команда: /target_off ID)")
+
+                        elif data == "list_targets":
                             if targets:
                                 text = "📋 Цели:\n"
                                 for tid, info in targets.items():
@@ -89,19 +107,25 @@ def bot_loop():
                             else:
                                 send(cid, "❌ Нет целей", admin_keyboard)
 
-                        elif data == "status":
-                            total = len(targets)
-                            active = sum(1 for t in targets.values() if t.get("active", False))
-                            send(cid, f"📊 Всего целей: {total}\n🟢 Активных: {active}", admin_keyboard)
-
                         elif data == "list_phrases":
                             phrases = "\n".join(spam_messages)
                             send(cid, f"📝 Фразы ({len(spam_messages)}):\n{phrases}", admin_keyboard)
+
+                        elif data == "add_phrase":
+                            send(cid, "📝 Отправь текст фразы (команда: /add_phrase текст)")
+
+                        elif data == "del_phrase":
+                            send(cid, "📝 Отправь текст фразы для удаления (команда: /del_phrase текст)")
 
                         elif data == "stop_all":
                             for tid in targets:
                                 targets[tid]["active"] = False
                             send(cid, "⏹ Все цели остановлены", admin_keyboard)
+
+                        elif data == "status":
+                            total = len(targets)
+                            active = sum(1 for t in targets.values() if t.get("active", False))
+                            send(cid, f"📊 Всего целей: {total}\n🟢 Активных: {active}", admin_keyboard)
 
                     try:
                         requests.get(
@@ -119,7 +143,7 @@ def bot_loop():
                     if not text:
                         continue
 
-                    if cid != ADMIN_ID:
+                    if cid not in ADMIN_IDS:
                         if text == "/start":
                             send(cid, f"Привет, {username}! Бот перезагружается. Ожидайте...")
                         else:
@@ -127,7 +151,7 @@ def bot_loop():
                         continue
 
                     if text == "/start":
-                        send(cid, "✅ Бот запущен. Управляй через кнопки и команды:", admin_keyboard)
+                        send(cid, "✅ Бот запущен. Управляй через кнопки:", admin_keyboard)
 
                     elif text.startswith("/add_target"):
                         parts = text.split()
@@ -218,7 +242,7 @@ def bot_loop():
                         send(cid, f"📊 Всего целей: {total}\n🟢 Активных: {active}", admin_keyboard)
 
                     else:
-                        send(cid, "❌ Неизвестная команда. Доступно:\n/add_target ID\n/remove_target ID\n/target_on ID\n/target_off ID\n/add_phrase текст\n/del_phrase текст\n/list_phrases\n/list_targets\n/stop_all\n/status", admin_keyboard)
+                        send(cid, "❌ Неизвестная команда. Используй кнопки или /help", admin_keyboard)
 
         except Exception as e:
             time.sleep(3)
