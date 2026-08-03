@@ -1,4 +1,4 @@
-import os, requests, time, threading, json
+import os, requests, time, threading, json, random
 from flask import Flask
 
 app = Flask(__name__)
@@ -28,28 +28,64 @@ def send_spam(chat_id, text):
     except:
         pass
 
+# 🔥 НОВЫЙ СПИСОК (без родителей, 40+ фраз)
+spam_messages = [
+    "ты пидор",
+    "ты пидорок",
+    "пидор",
+    "ты не прав, ты пидор",
+    "самый настоящий пидор",
+    "пидорок",
+    "согласись, ты пидор",
+    "ты пидор, это факт",
+    "ты пидор, иди нахуй",
+    "пидор, ты не человек",
+    "ты даже не пидор, ты пидорище",
+    "ты пидор, удали Telegram",
+    "пидор, ты ошибка природы",
+    "ты пидор, смирись",
+    "пидор, ты проиграл",
+    "пидор, ты смешон",
+    "пидор, ты никто",
+    "пидор, ты бесполезен",
+    "пидор, ты просто шум",
+    "пидор, ты не нужен",
+    "пидор, ты пустота",
+    "пидор, ты хуже спама",
+    "пидор, ты даже не смешной",
+    "пидор, ты просто цифра",
+    "пидор, ты ошибка",
+    "пидор, ты фейк",
+    "пидор, ты баг",
+    "пидор, ты глюк",
+    "пидор, ты баян",
+    "пидор, ты шутка",
+    "пидор, ты кринж",
+    "пидор, ты позор",
+    "пидор, ты страх",
+    "пидор, ты боль",
+    "пидор, ты скука",
+    "пидор, ты пустота",
+    "пидор, ты никто",
+    "пидор, ты просто точка",
+    "пидор, ты конец",
+    "пидор, ты свет",
+    "пидор, ты тьма",
+    "пидор, ты всё",
+    "пидор, ты ничего"
+]
+
 def spam_loop(chat_id):
     global spam_active
-    messages = [
-        "ты пидорок",
-        "ты пидор",
-        "пидор",
-        "ты не прав, ты пидор",
-        "самый настоящий пидор",
-        "пидорок",
-        "согласись, ты пидор",
-        "пидор"
-    ]
     while spam_active:
-        for msg in messages:
-            if not spam_active:
-                break
-            send_spam(chat_id, msg)
-            time.sleep(0.5)
+        msg = random.choice(spam_messages)
+        send_spam(chat_id, msg)
+        time.sleep(0.05)  # пулемёт
 
 admin_keyboard = [
     [{"text": "🔁 Включить спам", "callback_data": "spam_on"}],
     [{"text": "⏹ Выключить спам", "callback_data": "spam_off"}],
+    [{"text": "🎯 Выбрать цель по ID", "callback_data": "set_target"}],
     [{"text": "📊 Статус", "callback_data": "status"}]
 ]
 
@@ -74,11 +110,12 @@ def bot_loop():
                         send(cid, "⛔ Доступ запрещён", None)
                     else:
                         if data == "spam_on":
-                            if not spam_active:
+                            if spam_target is None:
+                                send(cid, "⚠️ Сначала выбери цель через кнопку «Выбрать цель»", admin_keyboard)
+                            elif not spam_active:
                                 spam_active = True
-                                spam_target = cid
-                                send(cid, "🔁 Спам включен!", admin_keyboard)
-                                threading.Thread(target=spam_loop, args=(cid,), daemon=True).start()
+                                send(cid, f"🔁 Спам включен для {spam_target}!", admin_keyboard)
+                                threading.Thread(target=spam_loop, args=(spam_target,), daemon=True).start()
                             else:
                                 send(cid, "⚠️ Спам уже включён", admin_keyboard)
 
@@ -86,9 +123,13 @@ def bot_loop():
                             spam_active = False
                             send(cid, "⏹ Спам выключен.", admin_keyboard)
 
+                        elif data == "set_target":
+                            send(cid, "📝 Отправь ID цели (например, 123456789)\n\nБот запомнит этот ID и будет спамить на него.", admin_keyboard)
+
                         elif data == "status":
                             status = "включён" if spam_active else "выключен"
-                            send(cid, f"📊 Спам: {status}", admin_keyboard)
+                            target = spam_target if spam_target else "не установлена"
+                            send(cid, f"📊 Спам: {status}\n🎯 Цель: {target}", admin_keyboard)
 
                     try:
                         requests.get(
@@ -115,20 +156,38 @@ def bot_loop():
 
                     if text == "/start":
                         send(cid, "✅ Бот запущен. Управляй через кнопки:", admin_keyboard)
+
+                    elif text.startswith("/set_target"):
+                        parts = text.split()
+                        if len(parts) == 2 and parts[1].isdigit():
+                            spam_target = parts[1]
+                            send(cid, f"✅ Цель установлена: {spam_target}", admin_keyboard)
+                        else:
+                            send(cid, "❌ Используй: /set_target ID_ЦЕЛИ", admin_keyboard)
+
                     elif text == "/spam_on":
-                        if not spam_active:
+                        if spam_target is None:
+                            send(cid, "⚠️ Сначала установи цель через /set_target ID", admin_keyboard)
+                        elif not spam_active:
                             spam_active = True
-                            spam_target = cid
-                            send(cid, "🔁 Спам включен!", admin_keyboard)
-                            threading.Thread(target=spam_loop, args=(cid,), daemon=True).start()
+                            send(cid, f"🔁 Спам включен для {spam_target}!", admin_keyboard)
+                            threading.Thread(target=spam_loop, args=(spam_target,), daemon=True).start()
                         else:
                             send(cid, "⚠️ Спам уже включён", admin_keyboard)
+
                     elif text == "/spam_off":
                         spam_active = False
                         send(cid, "⏹ Спам выключен.", admin_keyboard)
+
                     elif text == "/status":
                         status = "включён" if spam_active else "выключен"
-                        send(cid, f"📊 Спам: {status}", admin_keyboard)
+                        target = spam_target if spam_target else "не установлена"
+                        send(cid, f"📊 Спам: {status}\n🎯 Цель: {target}", admin_keyboard)
+
+                    elif text.isdigit():
+                        spam_target = text
+                        send(cid, f"✅ Цель установлена: {spam_target}", admin_keyboard)
+
                     else:
                         send(cid, "❌ Неизвестная команда. Используй кнопки:", admin_keyboard)
 
